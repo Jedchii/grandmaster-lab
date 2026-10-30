@@ -1,0 +1,7 @@
+* text=auto eol=lf
+
+# engine builds, nets, opening book, images
+*.bin binary
+*.wasm binary
+*.nnue binary
+*.png binary

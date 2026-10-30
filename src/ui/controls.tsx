@@ -1,0 +1,142 @@
+// Small touch-first form controls.
+
+import type { ComponentChildren } from 'preact';
+import { useEffect, useState } from 'preact/hooks';
+
+export function Section(props: { title: string; hint?: string; children: ComponentChildren }) {
+  return (
+    <section class="section">
+      <header class="section-head">
+        <h3>{props.title}</h3>
+        {props.hint && <p>{props.hint}</p>}
+      </header>
+      <div class="section-body">{props.children}</div>
+    </section>
+  );
+}
+
+export function Row(props: { label: string; value?: ComponentChildren; children?: ComponentChildren }) {
+  return (
+    <div class="row">
+      <div class="row-top">
+        <span class="row-label">{props.label}</span>
+        {props.value !== undefined && <span class="row-value">{props.value}</span>}
+      </div>
+      {props.children}
+    </div>
+  );
+}
+
+/**
+ * Native range input: smooth on iOS. Shows the value live while dragging
+ * and commits on release, so the engine isn't restarted on every pixel.
+ */
+export function Slider(props: {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  format: (v: number) => string;
+  onCommit: (v: number) => void;
+}) {
+  const [live, setLive] = useState(props.value);
+  useEffect(() => setLive(props.value), [props.value]);
+  const pct = ((live - props.min) / (props.max - props.min)) * 100;
+  return (
+    <Row label={props.label} value={props.format(live)}>
+      <input
+        type="range"
+        class="slider"
+        min={props.min}
+        max={props.max}
+        step={props.step}
+        value={live}
+        style={{ '--fill': `${pct}%` }}
+        onInput={(e) => setLive(Number((e.target as HTMLInputElement).value))}
+        onChange={(e) => props.onCommit(Number((e.target as HTMLInputElement).value))}
+      />
+    </Row>
+  );
+}
+
+export function Segmented<T extends string | number>(props: {
+  value: T;
+  options: Array<{ value: T; label: string }>;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div class="segmented" role="radiogroup">
+      {props.options.map((o) => (
+        <button
+          key={String(o.value)}
+          role="radio"
+          aria-checked={o.value === props.value}
+          class={o.value === props.value ? 'seg on' : 'seg'}
+          onClick={() => props.onChange(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** iOS 17.4+ renders `switch` checkboxes as native switches (with haptics). */
+export function Toggle(props: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label class="toggle">
+      <span class="toggle-text">
+        <span class="row-label">{props.label}</span>
+        {props.hint && <span class="toggle-hint">{props.hint}</span>}
+      </span>
+      <input
+        type="checkbox"
+        // @ts-expect-error - `switch` is a valid boolean attribute in Safari 17.4+
+        switch
+        checked={props.checked}
+        onChange={(e) => props.onChange((e.target as HTMLInputElement).checked)}
+      />
+    </label>
+  );
+}
+
+const ICONS: Record<string, string> = {
+  back: 'M15 5l-7 7 7 7',
+  forward: 'M9 5l7 7-7 7',
+  first: 'M17 5l-7 7 7 7M8 5v14',
+  flip: 'M7 4v16M7 4l-3 3M7 4l3 3M17 20V4M17 20l-3-3M17 20l3-3',
+  undo: 'M9 7H5V3M5.6 7.4A8 8 0 1 1 4 13',
+  plus: 'M12 5v14M5 12h14',
+  gear: 'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.5 7.5 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.5 7.5 0 0 0 1.7-1l2.4 1 2-3.4z',
+  flag: 'M5 21V4M5 4h11l-2 4 2 4H5',
+  bulb: 'M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2v.5h5V16c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z',
+};
+
+export function Icon(props: { name: keyof typeof ICONS | string }) {
+  return (
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d={ICONS[props.name]} />
+    </svg>
+  );
+}
+
+export function IconButton(props: {
+  icon: string;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  active?: boolean;
+}) {
+  return (
+    <button
+      class={props.active ? 'icon-btn active' : 'icon-btn'}
+      aria-label={props.label}
+      disabled={props.disabled}
+      onClick={props.onClick}
+    >
+      <Icon name={props.icon} />
+      <span class="icon-btn-label">{props.label}</span>
+    </button>
+  );
+}

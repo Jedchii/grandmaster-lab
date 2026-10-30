@@ -1,0 +1,636 @@
+/* Classic layout — the original Grandmaster Lab UI: glassmorphic persona
+   card, edge-to-edge board with your colour at the bottom, eval strip, move
+   strip and a pull-up "Lab" sheet. Everything is scoped to `.classic`; the
+   shared controls (settings rows, toggles, buttons, editor) live in app.css. */
+
+.app.classic {
+  --sq-light: #dfe4ec;
+  --sq-dark: #8798b0;
+  --radius: 22px;
+  /* Visible part of the closed sheet: grabber + control row + home indicator. */
+  --peek: calc(26px + 62px + var(--safe-bottom));
+  /* Height of the opponent card (full or compact). */
+  --card-h: 148px;
+  /* Everything stacked around the board (persona card, eval, moves, gaps). */
+  --classic-chrome: calc(var(--safe-top) + var(--card-h) + 26px + 40px + var(--peek) + 18px);
+  --board: min(100vw, calc(100dvh - var(--classic-chrome)), 720px);
+  background:
+    radial-gradient(120% 70% at 50% -10%, rgba(120, 90, 255, 0.18), transparent 60%),
+    radial-gradient(90% 60% at 100% 100%, rgba(0, 200, 170, 0.1), transparent 60%),
+    linear-gradient(180deg, #10141f, #090b11 60%);
+  background-color: #090b11;
+}
+
+.classic .stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: calc(var(--safe-top) + 8px) 0 calc(var(--peek) + 8px);
+  gap: 8px;
+}
+
+/* ---------------------------------------------------------- persona card */
+
+.app.classic.compact-card {
+  --card-h: 46px;
+}
+
+.classic .persona {
+  cursor: pointer;
+}
+
+.classic .persona-chev {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--faint);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.classic .persona.compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 34px 0 8px;
+  border-radius: 16px;
+}
+
+.classic .persona.compact .persona-chev {
+  top: 50%;
+  margin-top: -8px;
+}
+
+.classic .persona.compact .avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 11px;
+  font-size: 18px;
+}
+
+.classic .persona.compact .avatar::after {
+  inset: -3px;
+  border-radius: 13px;
+}
+
+.classic .persona-cname {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.classic .persona.compact .status {
+  margin-top: 0;
+  flex: 1;
+}
+
+.classic .persona.compact .depth,
+.classic .persona.compact .eco {
+  margin-left: 0;
+  flex-shrink: 0;
+}
+
+.classic .persona.compact .bubble {
+  left: 46px;
+}
+
+.classic .persona {
+  position: relative;
+  width: calc(100% - 20px);
+  max-width: 700px;
+  border-radius: var(--radius);
+  padding: 12px 14px 10px;
+  flex-shrink: 0;
+}
+
+.classic .persona-main {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-right: 16px; /* room for the collapse chevron */
+}
+
+.classic .avatar {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--stroke);
+  font-size: 30px;
+}
+
+.classic .avatar span {
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+}
+
+.classic .avatar::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 21px;
+  border: 2px solid var(--accent);
+  opacity: 0;
+  transform: scale(0.94);
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+}
+
+.classic .avatar.busy::after {
+  opacity: 0.9;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.classic .avatar.pondering::after {
+  opacity: 0.45;
+  animation-duration: 2.6s;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(0.96);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 0.35;
+  }
+}
+
+.classic .persona-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.classic .persona-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.classic .chip.insta {
+  color: #9fd7ff;
+  border-color: rgba(120, 200, 255, 0.35);
+  background: rgba(120, 200, 255, 0.1);
+}
+
+.classic .persona-sub {
+  color: var(--muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.classic .status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 18px;
+  min-width: 0;
+}
+
+.classic .status-text {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.classic .status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+  flex-shrink: 0;
+}
+
+.classic .tone-busy .status-dot {
+  background: var(--accent);
+}
+.classic .tone-ponder .status-dot {
+  background: #9f8bff;
+}
+.classic .tone-book .status-dot {
+  background: var(--warn);
+}
+.classic .tone-idle .status-dot {
+  background: var(--good);
+}
+.classic .tone-error .status-dot {
+  background: var(--bad);
+}
+.classic .status.tone-alert {
+  color: var(--warn);
+  animation: pop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.classic .tone-alert .status-dot {
+  background: var(--warn);
+}
+
+.classic .dots {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 1px;
+  flex-shrink: 0;
+}
+
+.classic .dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.3;
+  animation: dot 1.2s infinite;
+}
+
+.classic .dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.classic .dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.classic .depth,
+.classic .note {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.classic .depth {
+  font-family: var(--mono);
+}
+
+.classic .opening {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid var(--stroke);
+  font-size: 12.5px;
+  min-height: 26px;
+}
+
+.classic .eco {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 11.5px;
+  color: var(--accent);
+}
+
+.classic .opening-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.classic .bubble {
+  position: absolute;
+  z-index: 20;
+  left: 72px;
+  right: 14px;
+  top: calc(100% - 6px);
+  padding: 9px 13px;
+  border-radius: 16px;
+  border-top-left-radius: 4px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #11131a;
+  font-size: 13.5px;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  transform-origin: 10% 0;
+  animation: bubble-down 4.2s cubic-bezier(0.2, 1.2, 0.4, 1) forwards;
+}
+
+@keyframes bubble-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.9);
+  }
+  7% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  88% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+/* ------------------------------------------------------------- eval strip */
+
+.classic .evalbar,
+.classic .evalbar-spacer {
+  width: var(--board);
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.classic .evalbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+
+.classic .evalbar-track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1c2130;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.classic .evalbar-fill {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #f6f7fb, #dfe4ec);
+  transform-origin: left center;
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.classic .evalbar.flipped .evalbar-fill {
+  transform-origin: right center;
+}
+
+.classic .evalbar-mid {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: rgba(255, 90, 110, 0.6);
+}
+
+.classic .evalbar-label {
+  min-width: 44px;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.classic .evalbar-label.w {
+  color: #f1f3f8;
+}
+
+/* ------------------------------------------------------------- move strip */
+
+.classic .moves {
+  position: relative; /* offsetParent for the scroll math */
+  width: calc(100% - 20px);
+  max-width: 700px;
+  flex-shrink: 0;
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  padding: 2px 2px 4px;
+  min-height: 36px;
+  align-items: center;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+}
+
+.classic .moves::-webkit-scrollbar {
+  display: none;
+}
+
+.classic .moves.empty {
+  justify-content: center;
+  font-size: 13px;
+}
+
+.classic .mv {
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.classic .mv.them {
+  color: #cdd3df;
+}
+
+.classic .mv.future {
+  opacity: 0.4;
+}
+
+.classic .mv.active {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: var(--stroke-strong);
+  color: #fff;
+}
+
+.classic .mv-no {
+  color: var(--faint);
+  font-weight: 500;
+  margin-right: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----------------------------------------------------------- engine lines */
+
+.classic .lines {
+  width: calc(100% - 20px);
+  max-width: 700px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #c4cad8;
+  flex-shrink: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.classic .lines.muted {
+  font-family: var(--font);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ----------------------------------------------------------- bottom sheet */
+
+.classic .sheet-backdrop {
+  z-index: 40;
+}
+
+.classic .sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  height: min(86dvh, 760px);
+  max-width: 760px;
+  margin: 0 auto;
+  border-radius: 26px 26px 0 0;
+  border-bottom: 0;
+  background: var(--glass-strong);
+  display: flex;
+  flex-direction: column;
+  transform: translate3d(0, calc(100% - var(--peek)), 0);
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.classic .sheet.open {
+  transform: translate3d(0, 0, 0);
+}
+
+.classic .peek-probe {
+  position: absolute;
+  width: 0;
+  height: var(--peek);
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.classic .sheet-grab {
+  height: 26px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  cursor: grab;
+}
+
+.classic .sheet-controls {
+  height: 62px;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 0 4px;
+  margin-bottom: var(--safe-bottom);
+}
+
+.classic .sheet.open .sheet-controls {
+  margin-bottom: 0;
+}
+
+.classic .icon-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: 14px;
+  min-height: 52px;
+  color: #dfe3ec;
+  transition:
+    background 0.15s,
+    transform 0.12s;
+}
+
+.classic .icon-btn:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(0.94);
+}
+
+.classic .icon-btn.active {
+  color: var(--accent);
+}
+
+.classic .icon-btn.confirm {
+  color: var(--warn);
+  background: rgba(255, 198, 92, 0.12);
+}
+
+.classic .icon {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.classic .icon-btn-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.classic .icon-btn.active .icon-btn-label,
+.classic .icon-btn.confirm .icon-btn-label {
+  color: inherit;
+}
+
+.classic .sheet-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: 4px 16px calc(var(--safe-bottom) + 24px);
+  border-top: 1px solid var(--stroke);
+}
+
+.classic .btn-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 8px;
+}
+
+.classic .btn-row.three {
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 8px;
+}
+
+.classic .btn-row.three .btn {
+  font-size: 13px;
+}
+
+.classic .gameover-actions.four .ghost {
+  grid-column: auto;
+}
+
+/* --------------------------------------------------------------- misc */
+
+.classic .toast {
+  top: calc(var(--safe-top) + 10px);
+}

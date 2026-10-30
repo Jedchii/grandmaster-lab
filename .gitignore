@@ -1,0 +1,16 @@
+node_modules
+dist
+dev-dist
+*.local
+certs/
+engines/patricia/.build/
+# regenerated from node_modules/stockfish on install
+public/engines/stockfish/
+
+.vercel
+
+# local / OS noise
+.claude/settings.local.json
+*.log
+.DS_Store
+Thumbs.db
