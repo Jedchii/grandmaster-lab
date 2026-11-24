@@ -12,6 +12,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["preview", "--port", "4173", "--strictPort"],
       "port": 4173
+    },
+    {
+      "name": "grandmaster-lab-native",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["preview:native", "--port", "4174", "--strictPort"],
+      "port": 4174
     }
   ]
 }

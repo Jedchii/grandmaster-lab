@@ -7,8 +7,15 @@
   --sq-light: #dfe4ec;
   --sq-dark: #8798b0;
   --radius: 22px;
-  /* Visible part of the closed sheet: grabber + control row + home indicator. */
-  --peek: calc(26px + 62px + var(--safe-bottom));
+  /* Bottom bar: grab strip + control row + home indicator. */
+  --strip: 26px;
+  --ctrl: 62px;
+  --peek: calc(var(--strip) + var(--ctrl) + var(--safe-bottom));
+  /* Lab tabs: they cover the bar's grab strip and rise above it. */
+  --tabs-h: 52px;
+  /* Lab sheet (above the bar): full height, and the height shown at half. */
+  --sheet-full: calc(min(100dvh - var(--safe-top) - 24px, 860px) - var(--peek));
+  --sheet-half: min(calc(58dvh - var(--peek)), var(--sheet-full));
   /* Height of the opponent card (full or compact). */
   --card-h: 148px;
   /* Everything stacked around the board (persona card, eval, moves, gaps). */
@@ -411,23 +418,56 @@
 
 /* ------------------------------------------------------------- move strip */
 
-.classic .moves {
-  position: relative; /* offsetParent for the scroll math */
+.classic .moves-row {
   width: calc(100% - 20px);
   max-width: 700px;
   flex-shrink: 0;
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
+}
+
+.classic .moves {
+  position: relative; /* offsetParent for the scroll math */
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 6px;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior: contain;
   scrollbar-width: none;
   touch-action: pan-x;
-  padding: 2px 2px 4px;
-  min-height: 36px;
+  padding: 0 2px;
+  min-height: 44px;
   align-items: center;
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
   mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+}
+
+.classic .live-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 44px;
+  padding: 0 10px 0 14px;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  animation: pop 0.25s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+
+.classic .live-btn:active {
+  transform: scale(0.95);
+}
+
+.classic .live-btn .icon {
+  width: 18px;
+  height: 18px;
 }
 
 .classic .moves::-webkit-scrollbar {
@@ -441,8 +481,11 @@
 
 .classic .mv {
   flex-shrink: 0;
-  padding: 6px 9px;
-  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
   font-size: 13.5px;
   font-weight: 600;
   background: rgba(255, 255, 255, 0.04);
@@ -491,63 +534,72 @@
   text-align: center;
 }
 
-/* ----------------------------------------------------------- bottom sheet */
+/* ----------------------------------------------- bottom bar + Lab sheet */
 
 .classic .sheet-backdrop {
   z-index: 40;
 }
 
-.classic .sheet {
+.app.classic.lab-dragging .sheet-backdrop {
+  opacity: 1;
+}
+
+/* The bar never moves; the sheet and tabs slide up from behind it. */
+.classic .cbar {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 50;
-  height: min(86dvh, 760px);
+  z-index: 52;
   max-width: 760px;
   margin: 0 auto;
+  height: var(--peek);
+  padding-bottom: var(--safe-bottom);
+  display: flex;
+  flex-direction: column;
   border-radius: 26px 26px 0 0;
   border-bottom: 0;
   background: var(--glass-strong);
-  display: flex;
-  flex-direction: column;
-  transform: translate3d(0, calc(100% - var(--peek)), 0);
-  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
+  touch-action: none;
+  transition: border-radius 0.3s;
 }
 
-.classic .sheet.open {
-  transform: translate3d(0, 0, 0);
+.classic .cbar.open {
+  border-radius: 0;
 }
 
-.classic .peek-probe {
-  position: absolute;
-  width: 0;
-  height: var(--peek);
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.classic .sheet-grab {
-  height: 26px;
+.classic .cbar-grab {
+  height: var(--strip);
   flex-shrink: 0;
+  width: 100%;
   display: grid;
   place-items: center;
-  touch-action: none;
   cursor: grab;
 }
 
 .classic .sheet-controls {
-  height: 62px;
+  height: var(--ctrl);
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  padding: 0 4px;
-  margin-bottom: var(--safe-bottom);
+  grid-template-columns: repeat(var(--n, 6), 1fr);
+  gap: 2px;
+  padding: 0 6px;
 }
 
-.classic .sheet.open .sheet-controls {
-  margin-bottom: 0;
+.classic .peek-probe,
+.classic .half-probe {
+  position: absolute;
+  width: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.classic .peek-probe {
+  height: var(--peek);
+}
+
+.classic .half-probe {
+  height: var(--sheet-half);
 }
 
 .classic .icon-btn {
@@ -557,7 +609,7 @@
   justify-content: center;
   gap: 3px;
   border-radius: 14px;
-  min-height: 52px;
+  min-height: 54px;
   color: #dfe3ec;
   transition:
     background 0.15s,
@@ -569,18 +621,18 @@
   transform: scale(0.94);
 }
 
-.classic .icon-btn.active {
+.classic .icon-btn.active,
+.classic .icon-btn.accent {
   color: var(--accent);
 }
 
-.classic .icon-btn.confirm {
-  color: var(--warn);
-  background: rgba(255, 198, 92, 0.12);
+.classic .icon-btn.accent {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
 .classic .icon {
-  width: 23px;
-  height: 23px;
+  width: 24px;
+  height: 24px;
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -589,14 +641,102 @@
 }
 
 .classic .icon-btn-label {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--muted);
 }
 
 .classic .icon-btn.active .icon-btn-label,
-.classic .icon-btn.confirm .icon-btn-label {
+.classic .icon-btn.accent .icon-btn-label {
   color: inherit;
+}
+
+/* Lab tabs: directly above the bar's buttons, over its grab strip. */
+.classic .lab-tabs {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--peek) - var(--strip));
+  z-index: 53;
+  max-width: 760px;
+  margin: 0 auto;
+  height: var(--tabs-h);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgb(20, 24, 34);
+  border-top: 1px solid var(--stroke);
+  touch-action: none;
+  opacity: 0;
+  transform: translate3d(0, 14px, 0);
+  pointer-events: none;
+  transition:
+    opacity 0.2s,
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.classic .lab-tabs.show,
+.app.classic.lab-dragging .lab-tabs {
+  opacity: 1;
+  transform: none;
+}
+
+.classic .lab-tabs.show {
+  pointer-events: auto;
+}
+
+.classic .lab-tab {
+  min-height: 44px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--muted);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.classic .lab-tab.on {
+  background: rgba(255, 255, 255, 0.13);
+  color: #fff;
+}
+
+/* Sheet: always full height; half and closed push it down behind the bar. */
+.classic .sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--peek);
+  z-index: 50;
+  height: var(--sheet-full);
+  max-width: 760px;
+  margin: 0 auto;
+  border-radius: 26px 26px 0 0;
+  border-bottom: 0;
+  background: var(--glass-strong);
+  display: flex;
+  flex-direction: column;
+  transform: translate3d(0, calc(100% + var(--peek)), 0);
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.classic .sheet.open {
+  transform: translate3d(0, calc(100% - var(--sheet-half)), 0);
+}
+
+.classic .sheet.open.full {
+  transform: translate3d(0, 0, 0);
+}
+
+.classic .sheet-grab {
+  height: 28px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  cursor: grab;
 }
 
 .classic .sheet-content {
@@ -606,27 +746,125 @@
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  padding: 4px 16px calc(var(--safe-bottom) + 24px);
-  border-top: 1px solid var(--stroke);
+  /* Room for the tabs that overlap the sheet's bottom edge. */
+  padding: 0 16px calc(var(--tabs-h) - var(--strip) + 20px);
 }
 
-.classic .btn-row {
+/* At half height the sheet's lower part is hidden behind the bar: extra
+   room so the last rows can still be scrolled into view. */
+.classic .sheet:not(.full) .sheet-content {
+  padding-bottom: calc(var(--sheet-full) - var(--sheet-half) + var(--tabs-h) - var(--strip) + 20px);
+}
+
+/* Play tab quick actions */
+.classic .qa-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 
-.classic .btn-row.three {
-  grid-template-columns: repeat(3, 1fr);
-  margin-top: 8px;
+.classic .qa {
+  min-height: 68px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 4px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--stroke);
+  font-size: 12.5px;
+  font-weight: 700;
+  transition:
+    transform 0.12s,
+    background 0.15s;
 }
 
-.classic .btn-row.three .btn {
+.classic .qa:active:not(:disabled) {
+  transform: scale(0.96);
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.classic .qa.armed {
+  color: var(--bad);
+  border-color: rgba(255, 93, 115, 0.5);
+  background: rgba(255, 93, 115, 0.12);
+}
+
+/* Result banner: over the top edge of the board, the final position stays visible. */
+.classic .gameover-banner {
+  position: absolute;
+  z-index: 25;
+  top: 8px;
+  left: 0;
+  right: 0;
+  width: fit-content;
+  max-width: calc(100% - 16px);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px 8px 12px;
+  border-radius: 999px;
+  background: rgba(18, 22, 33, 0.9);
+  font-size: 14.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+  animation: pop 0.3s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+
+.classic .gameover-banner-emoji {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.classic .gameover-banner .muted {
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.classic .gameover-actions.four .ghost {
-  grid-column: auto;
+/* ------------------------------------------------- thumb-sized controls */
+
+.classic .seg {
+  min-height: 44px;
+}
+
+.classic .toggle {
+  min-height: 48px;
+}
+
+.classic .btn.small {
+  min-height: 44px;
+}
+
+.classic .preset-apply {
+  min-height: 44px;
+  padding: 0 14px;
+}
+
+.classic .preset-del {
+  width: 44px;
+}
+
+.classic .preset-save input {
+  height: 44px;
+}
+
+.classic .hist-row {
+  min-height: 56px;
+}
+
+/* Delete gets its own row, away from Resume and Share. */
+.classic .hist-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+.classic .hist-actions .danger {
+  grid-column: 1 / -1;
+  margin-top: 6px;
 }
 
 /* --------------------------------------------------------------- misc */

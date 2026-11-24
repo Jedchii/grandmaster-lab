@@ -1327,6 +1327,7 @@ void iterative_deepen(
   thread_info.best_moves = {0};
   thread_info.best_scores = {ScoreNone, ScoreNone, ScoreNone, ScoreNone,
                              ScoreNone};
+  thread_info.done_lines = 0;
   std::memset(&thread_info.KillerMoves, 0, sizeof(thread_info.KillerMoves));
   std::memset(&thread_info.FailHighCount, 0, sizeof(thread_info.FailHighCount));
 
@@ -1544,6 +1545,19 @@ void iterative_deepen(
         alpha = ScoreNone, beta = -ScoreNone;
       }
     }
+
+    // Grandmaster Lab: remember the last fully searched depth. A time cutoff
+    // mid-iteration leaves the later lines at the previous depth, and human
+    // mode must compare its five candidates at one depth.
+    if (thread_info.is_human && thread_info.thread_id == 0) {
+      for (int i = 0; i < 5; i++) {
+        thread_info.done_moves[i] =
+            i < real_multi_pv ? thread_info.best_moves[i] : MoveNone;
+        thread_info.done_scores[i] = thread_info.best_scores[i];
+        thread_info.done_material[i] = thread_info.pv_material[i];
+      }
+      thread_info.done_lines = real_multi_pv;
+    }
   }
 
 finish:
@@ -1554,6 +1568,15 @@ finish:
     // before the GUI sends ponderhit or stop.
     ponder_pause();
     thread_data.stop = true;
+  }
+  if (thread_info.thread_id == 0 && thread_info.is_human &&
+      thread_info.done_lines) {
+    // Human mode picks from these: hand it the last complete depth.
+    for (int i = 0; i < 5; i++) {
+      thread_info.best_moves[i] = thread_info.done_moves[i];
+      thread_info.best_scores[i] = thread_info.done_scores[i];
+      thread_info.pv_material[i] = thread_info.done_material[i];
+    }
   }
   search_end_barrier.arrive_and_wait();
   if (thread_info.thread_id == 0 && !thread_info.doing_datagen &&

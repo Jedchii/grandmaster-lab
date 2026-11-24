@@ -1,0 +1,113 @@
+# Builds an UNSIGNED .ipa of the native iOS app (Capacitor) on a macOS runner.
+# Sideloadly (or AltStore) signs it with your own Apple ID when installing.
+# Download it from the run's "Artifacts" section (or `gh run download`).
+name: iOS unsigned IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      DERIVED: ${{ github.workspace }}/build/dd
+      OUT: ${{ github.workspace }}/build/ipa
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.32.1
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build the bundled web app (no service worker)
+        run: pnpm build:native
+
+      - name: Generate the Xcode project
+        run: bash ios-app/scripts/prepare-ios.sh
+
+      - name: Build App.app (unsigned, iPhone only)
+        run: |
+          set -o pipefail
+          xcodebuild -version
+          VERSION=$(node -p "require('./package.json').version")
+          xcodebuild \
+            -project ios-app/ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$DERIVED" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            TARGETED_DEVICE_FAMILY=1 \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            -quiet \
+            build
+
+      - name: Package the .ipa
+        run: |
+          set -euo pipefail
+          APP="$DERIVED/Build/Products/Release-iphoneos/App.app"
+          test -d "$APP"
+          VERSION=$(node -p "require('./package.json').version")
+          NAME="GrandmasterLab-${VERSION}-${{ github.run_number }}-unsigned.ipa"
+          mkdir -p "$OUT/Payload"
+          cp -R "$APP" "$OUT/Payload/"
+          (cd "$OUT" && zip -qry "$NAME" Payload && rm -rf Payload)
+          echo "IPA=$OUT/$NAME" >> "$GITHUB_ENV"
+
+      - name: Check the .ipa
+        run: |
+          set -euo pipefail
+          CHECK=$(mktemp -d)
+          unzip -q "$IPA" -d "$CHECK"
+          A="$CHECK/Payload/App.app"
+          echo "--- size"; ls -l "$IPA"; du -sh "$A"
+          echo "--- Info.plist"; plutil -p "$A/Info.plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$A/Info.plist")" = com.grandmasterlab.app
+          echo "--- bundled web app"
+          for f in index.html \
+                   engines/patricia/patricia-st.js engines/patricia/patricia-st.wasm engines/patricia/patricia-nets.bin \
+                   engines/stockfish/stockfish-19-lite-single.js engines/stockfish/stockfish-19-lite-single.wasm \
+                   books/The-Grandmaster-Files.bin books/eco.json; do
+            test -s "$A/public/$f" || { echo "missing public/$f" >&2; exit 1; }
+            echo "ok public/$f"
+          done
+          if [ -e "$A/public/sw.js" ]; then echo "service worker must not be bundled" >&2; exit 1; fi
+          echo "--- offline: no remote server configured"
+          cat "$A/capacitor.config.json"
+          if grep -q '"url"' "$A/capacitor.config.json"; then echo "server.url set" >&2; exit 1; fi
+          echo "--- signing (expected: none)"
+          ls "$A" | grep -E '_CodeSignature|embedded.mobileprovision' || echo "unsigned: ok"
+          echo "--- frameworks"; ls "$A/Frameworks" 2>/dev/null || echo "(none)"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: GrandmasterLab-unsigned-ipa
+          path: build/ipa/*.ipa
+          if-no-files-found: error
+          retention-days: 14

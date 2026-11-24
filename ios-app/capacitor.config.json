@@ -1,0 +1,17 @@
+{
+  "appId": "com.grandmasterlab.app",
+  "appName": "GM Lab",
+  "webDir": "www",
+  "backgroundColor": "#050608",
+  "loggingBehavior": "none",
+  "ios": {
+    "scheme": "App",
+    "contentInset": "never",
+    "scrollEnabled": false,
+    "allowsLinkPreview": false,
+    "backgroundColor": "#050608",
+    "preferredContentMode": "mobile",
+    "limitsNavigationsToAppBoundDomains": false,
+    "webContentsDebuggingEnabled": false
+  }
+}

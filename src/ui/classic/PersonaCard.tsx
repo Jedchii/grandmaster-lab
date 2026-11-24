@@ -7,7 +7,7 @@ import { lineKey, type EngineState } from '../../shared/protocol';
 import { game } from '../../state/game';
 import { engineSettings, uiSettings, updateUi } from '../../state/settings';
 
-const STYLE_LABEL = { aggressive: 'Hyper-Aggressive', positional: 'Positional', solid: 'Solid' } as const;
+const STYLE_LABEL = { classic: 'Classic', aggressive: 'Hyper-Aggressive', positional: 'Positional', solid: 'Solid' } as const;
 
 function subtitle(): string {
   const s = engineSettings.value;
@@ -18,7 +18,7 @@ function subtitle(): string {
     case 'stockfish':
       return s.elo >= 3000 ? 'Full strength · benchmark' : `Elo ${s.elo} · limited`;
     case 'drawfish':
-      return `${strength} · ${s.drawfishMode === 'relentless' ? 'Relentless' : 'Subtle troll'}`;
+      return `${s.drawfishDefense === 'max' ? 'Max defence' : strength} · ${s.drawfishMode === 'relentless' ? 'Relentless' : 'Subtle troll'}`;
   }
 }
 

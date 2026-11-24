@@ -31,6 +31,7 @@ import {
 } from '../shared/protocol';
 import {
   INITIAL_FEN,
+  materialBalance,
   parseLegalUci,
   positionFromFen,
   repetitionKey,
@@ -667,11 +668,6 @@ export class EngineHost {
       if (!this.stillDesired(d) || this.active) return;
     }
 
-    const ctx = { threaded: slot.threaded, maxThreads: this.maxThreads };
-    if (analysis) configureHint(engine, this.settings, ctx, d.kind === 'suggest' ? SUGGEST_LINES : 1);
-    else persona.configure(engine, this.settings, ctx);
-    const plan = d.kind === 'suggest' ? SUGGEST_PLAN : d.kind === 'hint' ? HINT_PLAN : persona.plan(this.settings);
-
     const startFen = this.view!.sync.startFen;
     const root = positionFromFen(startFen);
     const rootKeys = [repetitionKey(root)];
@@ -681,6 +677,16 @@ export class EngineHost {
       root.play(move);
       rootKeys.push(repetitionKey(root));
     }
+
+    const ctx = {
+      threaded: slot.threaded,
+      maxThreads: this.maxThreads,
+      lastValue: this.lastEval?.gameId === d.gameId ? this.lastEval.value : undefined,
+      materialEdge: materialBalance(root) * (root.turn === 'white' ? 1 : -1),
+    };
+    if (analysis) configureHint(engine, this.settings, ctx, d.kind === 'suggest' ? SUGGEST_LINES : 1);
+    else persona.configure(engine, this.settings, ctx);
+    const plan = d.kind === 'suggest' ? SUGGEST_PLAN : d.kind === 'hint' ? HINT_PLAN : persona.plan(this.settings);
 
     const a: ActiveSearch = {
       mode: d.kind,

@@ -4,7 +4,7 @@ An offline, touch-first chess sparring PWA for iPhone (Safari → Add to Home Sc
 
 | Persona | Engine | What it does |
 |---|---|---|
-| 🐇 **Patricia** | Patricia 5.1 by Adam Kulju, compiled to WebAssembly (SIMD) from source | Human-like, sacrificial play. Estimated Elo 800–3000, three playstyles. |
+| 🐇 **Patricia** | Patricia 5.1 by Adam Kulju, compiled to WebAssembly (SIMD) from source | Human-like, sacrificial play. Estimated Elo 800–3000, four playstyles (Classic is stock Patricia). |
 | 🐟 **Stockfish** | Stockfish 19 lite NNUE (stockfish.js) | The benchmark: live eval, mate scores, PV lines, eval bar. Optional Elo limit. |
 | 🐡 **DrawFish** | Stockfish 19 + Trollfish's draw logic | Draws at all costs: repetitions, perpetuals, trades, fortresses, stalemate lines. |
 
@@ -12,16 +12,24 @@ Everything (engines, NNUE nets, opening books, piece art, sounds) is precached b
 
 ## How it plays
 
-There are two layouts over the same game, engines and settings. Switch any time under **Lab → Layout** (Classic) or **Options → Layout** (SmallFish); the game in progress carries over.
+There are two layouts over the same game, engines and settings. Switch any time under **Lab → Display → Layout** (Classic) or **Options → Layout** (SmallFish); the game in progress carries over.
 
 ### Classic (default)
 
 * Persona card on top (avatar, live status, search depth, opening name), the board edge to edge with **your colour at the bottom**, a slim eval strip and a scrolling move strip under it.
-* Tap the opponent card to shrink it to one slim line (tap again to expand, or Lab → Undo, redo & gestures → Compact opponent card): the board moves up and gets bigger on small phones.
-* Pull-up sheet: `Back · Next · Flip · Undo · Hint · New · Lab`.
-  * *Back* / *Next* step through the game (hold to repeat). While you look at an earlier position the engine waits; *Next* back to the end resumes.
-  * *Flip* turns the board around (view only). *Undo* takes back to your previous turn. *New* first asks which colour you want (White, Black or Random), then starts the game; your choice becomes the Lab's *Play as* default.
-* Drag the sheet up (or tap *Lab*) for everything else: opponent and Elo, playstyle, Play as / Start / Resign, Edit position, Copy / Share PGN, move suggestions, engine presets, Instamove, think time, board colours, display and feel, the match history, pondering caps, opening book, engine threads, and reset.
+* Tap the opponent card to shrink it to one slim line (tap again to expand, or Lab → Display → Compact opponent card): the board moves up and gets bigger on small phones.
+* **Built for one thumb.** Every control is at least 44 × 44 pt, the iOS minimum.
+* Bottom bar, always in the same place: `Back · Next · Undo · Hint · New · Lab`.
+  * *Back* / *Next* step through the game on release (hold to scrub). A drag that starts on a button never presses it. While you look at an earlier position the engine waits; *Live* at the end of the move strip jumps back.
+  * *Undo* takes back to your previous turn. *New* first asks which colour you want (White, Black or Random), then starts the game; your choice becomes the Lab's *Play as* default.
+  * Left-handed? Lab → Display → *Bottom bar for* → *Left thumb* mirrors the bar (Lab on the left, Back and Next on the right).
+* When a game ends, the result shows as a slim banner over the top of the board and the bar becomes `Rematch · Switch · Undo · Review · Lab`. *Review* hides the result and gives you the normal bar back.
+* The Lab slides up from behind the bar. *Lab* (or the grabber pill) opens it to half height; drag up for full height. Drag down, swipe down on the content when it's scrolled to the top, tap outside it, or tap *Lab* again to close. Its four tabs sit right above the bar:
+  * **Play:** New game, Resign (tap twice), Flip board, Edit position, Copy / Share PGN, Play as, Match history.
+  * **Opponent:** opponent and Elo, playstyle, engine presets, Instamove and think time.
+  * **Display:** move suggestions, undo / redo step, compact card, bar handedness, board colours, display and feel, layout.
+  * **Engine:** pondering caps, opening book, engine threads and hash, reset, about.
+* Sliders have − / + buttons for exact one-notch steps (hold to repeat; the engine restarts once, on release).
 
 ### SmallFish
 
@@ -56,8 +64,8 @@ There are two layouts over the same game, engines and settings. Switch any time 
 * **Engine presets:** one tap sets opponent, Elo, style, think time, pondering and book. Built in: Blitz sparring, Club player, Master, Full Stockfish, Draw troll. *Save current setup as…* stores your own (tap × to delete). Presets never change threads or hash size, which are tuned to the device. The preset matching your current settings is highlighted.
 * **Saved settings:** every change is saved on the device and restored next time. *Reset engine* and *Reset display* (tap twice) go back to the defaults; reset keeps your threads/hash and the layout you're in.
 * **Sound and speech bubbles are off by default.** Turn them on under Display & feel. With sound off the app never opens an audio context, so music playing on the phone isn't interrupted.
-* **Instamove:** replies in under 50 ms. It uses the book, or an Elo-scaled depth cap (depth 1–2 at club level) within a 30 ms budget, plus controlled slips. Measured at 2–6 ms on desktop Chrome, about 30 ms in the host tests.
-  * *Ponder during Instamove* (Thinking, off by default): keeps pondering on your time. When you play the expected move, the reply is still instant but comes from the deeper ponder search. Pondering is capped at Instamove's Elo depth, so it never plays stronger than your Elo setting; it helps from about 2300 Elo up.
+* **Instamove:** replies in under 50 ms. It uses the book, or a 30 ms search. Stockfish and DrawFish add an Elo-scaled depth cap (depth 1–2 at club level) and, for Stockfish, controlled slips; Patricia's own Elo mode does her weakening. Measured at 2–6 ms on desktop Chrome, about 30 ms in the host tests.
+  * *Ponder during Instamove* (Thinking, off by default): keeps pondering on your time. When you play the expected move, the reply is still instant but comes from the deeper ponder search. For Stockfish, pondering is capped at Instamove's Elo depth, so it never plays stronger than your Elo setting. For Patricia, a hit plays at her full Elo-setting strength.
 * **Edit Position:**
   * Tap a palette piece, then tap squares to place it (drag to paint). Drag pieces from the palette, or use ✋ to move pieces and ⌫ to erase.
   * Clear Board, Starting Position, side to move, castling rights and which colour you play.
@@ -66,6 +74,43 @@ There are two layouts over the same game, engines and settings. Switch any time 
 * **Match history:** collapsed to one row until you tap it. Inside: *Auto-save games* (on by default: the previous game is saved whenever a new one starts), *Save current game now*, and the games (Resume / Share PGN / Delete). Resuming a game takes it out of the history while it's the live game; saving the same game again updates its entry instead of adding a duplicate.
 * **PGN archive:** saved on the device (localStorage). Headers are anonymous ("only moves matter"): Event, Site, Date, Round, White and Black are `?`, while Result carries the real outcome. Edited start positions add `SetUp`/`FEN`.
 * **Crash guard:** a UI error shows a small recovery card (Try again / Reload / Reset settings & reload) instead of a blank screen; the game and the engine keep running. Everything read from storage is validated, so a corrupt or outdated entry can't break the app.
+
+## Install on your iPhone
+
+The app installs straight from Safari as a Home Screen app. You don't need the App Store, a Mac or a developer account, and nothing expires after 7 days the way a sideloaded `.ipa` does. It needs one HTTPS address to install from; after that it never uses the network.
+
+1. **Deploy** (from this folder): `npx vercel --prod`. The folder is linked to the Vercel project *masterplan*; `vercel.json` sets the cross-origin isolation headers and `.vercelignore` keeps the upload to what the build needs. The first time, the CLI asks you to sign in.
+2. **On the iPhone, in Safari** (not Chrome; only Safari can install): open the deployment URL, tap **Share → Add to Home Screen**, keep *Open as Web App* on, and tap **Add**.
+3. **Open it once from the Home Screen while online** and wait for **✓ Ready to play offline** (about 10 MB). The Home Screen app keeps its own storage, separate from Safari, so this first launch is what saves it for offline use.
+4. From then on it works in airplane mode. **Lab → Engine → About** shows the version, whether the offline copy is complete and how much it stores, plus **Check for update**.
+
+**Updates:** deploy again. The app looks for a new version each time it comes back to the foreground (at most every 30 minutes) or when you tap *Check for update*, downloads it in the background, and shows *Update ready, tap to reload*. The game in progress is saved on every move, so the reload brings it back.
+
+**Your data** (settings, presets, saved games, the live game) lives in the Home Screen app's storage on the phone. Deleting the app from the Home Screen deletes it, so export games you want to keep with *Share PGN* first.
+
+**What the Home Screen app adds over a Safari tab:** full screen with no browser bars, launch screens for every iPhone from the SE to the 17 Pro Max (`pnpm splash` regenerates them), and storage marked persistent, so iOS doesn't clear the offline copy to free space.
+
+## Native iOS app (.ipa, sideloaded)
+
+The same app can also ship as a native iOS app: a Capacitor shell (`ios-app/`) around a bundled copy of the web build. Use it if you'd rather sideload than install from Safari. The Home Screen install above is still the main path and is unchanged.
+
+**How it differs from the Home Screen app**
+
+* **Everything is inside the app.** No service worker, no first-run download, and no network use at all.
+* **Single-threaded engines.** The iOS web view serves the app from `capacitor://localhost` without cross-origin isolation, so SharedArrayBuffer isn't available. The engine host notices and boots `patricia-st` and `stockfish-19-lite-single` by itself (`tests/engine-fallback.test.ts`). The *Threads* option is hidden, as in any non-isolated browser, so only the 2–3 thread setting is lost (the default is 1 thread).
+* **Updates** come as a new `.ipa`. Lab → Engine → About says "Native app".
+* **Your data is separate** from the Home Screen app's: settings and saved games don't carry over. Use *Share PGN* to move games.
+* **Free Apple ID:** a sideloaded app stops opening after 7 days. Re-install it with Sideloadly to renew it; your data stays as long as the app isn't deleted.
+
+**Build** (no Mac needed): `.github/workflows/ios-ipa.yml` runs on a GitHub Actions macOS runner on every push to `main` (or by hand: *Actions → iOS unsigned IPA → Run workflow*). It runs the tests, `pnpm build:native`, generates the Xcode project (`ios-app/scripts/prepare-ios.sh`: Capacitor 8 with Swift Package Manager; portrait only, iPhone only, light status bar over the app, app icon and launch screen from `ios-app/assets`), builds **unsigned**, and uploads `GrandmasterLab-<version>-<run>-unsigned.ipa` as the run's artifact (kept 14 days). Bundle ID `com.grandmasterlab.app`, Home Screen name *GM Lab*.
+
+**Install with Sideloadly** (Windows or Mac):
+
+1. Plug in the iPhone, unlock it and tap *Trust* if asked.
+2. In Sideloadly, drop the `.ipa` in, pick the iPhone, enter your Apple ID, click **Start**, and enter the password and code when Sideloadly asks. Sideloadly signs the app with your Apple ID.
+3. On the iPhone, turn on **Settings → Privacy & Security → Developer Mode** (iOS 16+; the phone restarts), then trust your Apple ID under **Settings → General → VPN & Device Management**.
+
+**Check it locally:** `pnpm build:native && pnpm preview:native` serves the native bundle without the isolation headers, like the iOS web view (single-thread engines, no service worker). `pnpm native:assets` regenerates the icon and launch image.
 
 ## Run it
 
@@ -96,7 +141,7 @@ UI thread (Preact + signals)                 never searches, never parses UCI
  ├─ game record (chessops, µs-cheap legality → moves land the same frame)
  └─ EngineClient ──postMessage──► engine-host worker
                                    ├─ Polyglot books (binary search, ~0.05 ms/probe) + ECO names
-                                   ├─ persona layer (Elo/style mapping, DrawFish selection, human slips)
+                                   ├─ persona layer (Elo/style mapping, DrawFish selection, Stockfish slips)
                                    ├─ ponder manager (go ponder / ponderhit / stop, thermal caps)
                                    ├─ UCI parsing + 10 Hz info throttle
                                    └─ nested engine worker (plain UCI text)
@@ -127,12 +172,15 @@ service worker: precache everything + re-apply COOP/COEP/CORP to cached response
 **Patricia.** The engine is patched (see `engines/patricia/src/gml.h`, `search.h`, `wasm/patricia_wasm.cpp`):
 
 * `go ponder` / `ponderhit`, plus `ponderdepth N` / `pondernodes N` thermal caps.
-* Continuous `UCI_Elo`, which feeds Patricia's own human mode (`cp_loss = 120 − Elo/25`, MultiPV 5).
+* Continuous `UCI_Elo`, which feeds Patricia's own human mode. Below 3000 she searches five lines at full depth, then plays a worse one within a running mistake budget of `120 − Elo/25` centipawns per move (Skill Level's calibration, also used by her Lichess bot littlePatricia).
+  * The budget only means what it says when the search is deep enough to measure the losses, so the host gives her the full think time and adds no depth cap and no slips. Instamove is a 30 ms time limit only.
+  * A ponder search that ends in `stop` (you played another move) doesn't touch the budget; a ponder hit counts as normal. `budget` (debug) prints it.
+  * She compares her five candidates at the last fully searched depth (`search.h`, `done_*`). Stock Patricia can mix depths when time runs out partway through an iteration, which made a move that had just been refuted look like a small inaccuracy.
 * A `Style` option:
+  * **Classic:** stock Patricia 5.1, unchanged.
   * **Hyper-Aggressive:** stock Patricia with the sacrifice bonuses ×1.6, the sacrifice net used earlier, and higher draw contempt.
   * **Positional:** sacrifice machinery off and material scaling off, with space and pawn-structure terms.
   * **Solid:** king-shelter and open-file terms, low contempt, happy to simplify, and prefers her careful "endgame" net when not winning.
-* The host adds depth throttling and shorter think time at lower Elo, plus a small chance of a controlled slip below 1500.
 
 **DrawFish.** Trollfish (included in the source folder) changes Stockfish's search to "prefer the smallest positive score; if losing, play the best move". DrawFish applies that rule at the root over Stockfish's MultiPV 6 lines, and adds:
 
@@ -141,7 +189,10 @@ service worker: precache everything + re-apply COOP/COEP/CORP to cached response
 * bonuses for even trades and pure opposite-coloured-bishop endings,
 * a safety floor so it never walks into a loss.
 
-Like Trollfish, it declines forced mates. *Subtle* hovers at a small plus; *Relentless* dives toward zero.
+Like Trollfish, it declines forced mates: when every line it sees is a forced mate, it plays the slowest one (preferring moves that keep the 50-move count running), never the mate in 1. When it is clearly winning (its last evaluation ≥ +2.5, or 3 pawns up on the board) it weighs 24 moves instead of 6, so it can find a way to give the win back. If every move still keeps it at least 3 pawns up, it avoids pawn moves and captures so the 50-move rule can end the game. *Defence* (Options) picks how hard it saves worse positions:
+
+* **Max defence** (default): always searches at full depth, whatever the Elo setting, and when behind stays within 0.25 pawns of the best defence and counts only pawn trades as drawish (trading pieces helps the side that's ahead). Started a pawn down against Stockfish at its strongest limited level, it held 3 of 4 games where the original lost all 4.
+* **Original:** the first DrawFish. The Elo setting caps its search depth, and when behind it allows moves up to 0.4 pawns worse and likes any even trade, so a worse position can slip away. *Subtle* hovers at a small plus; *Relentless* dives toward zero.
 
 Trollfish itself isn't compiled: it needs a 45 MB Stockfish 15 net and a second full engine build, which is too heavy for an iPhone.
 
@@ -151,12 +202,15 @@ Trollfish itself isn't compiled: it needs a 45 MB Stockfish 15 net and a second 
 |---|---|
 | `pnpm dev --host` | HTTPS dev server on the LAN |
 | `pnpm build` / `pnpm preview --host` | production build with service worker |
-| `pnpm test` | Polyglot hashing vs python-chess, DrawFish selection, undo/redo + PGN + archive rules, settings validation + presets + reset, host state-machine stress test (incl. suggestion arrows), Patricia UCI smoke test |
+| `pnpm build:native` / `pnpm preview:native` | bundle for the native iOS app (`dist-native/`, no service worker), served without isolation headers |
+| `pnpm native:assets` | regenerate the iOS app icon and launch image (`ios-app/assets/`, headless Chrome) |
+| `pnpm test` | Polyglot hashing vs python-chess, DrawFish selection, undo/redo + PGN + archive rules, settings validation + presets + reset, host state-machine stress test (incl. suggestion arrows), single-thread fallback without SharedArrayBuffer, Patricia UCI smoke test |
 | `pnpm engines:patricia` | rebuild Patricia WASM (needs the Emscripten SDK; set `EMSDK`, default `F:/emsdk` on this PC) |
 | `pnpm engines:stockfish` | copy the Stockfish lite builds from `node_modules` (runs on install) |
 | `pnpm data` | regenerate the Polyglot random table + ECO index (`python-chess`) |
 | `pnpm book` | rebuild *The Grandmaster Files* from `../Opening Data Base` (override with `BOOK_SOURCES`, `BOOK_TIERS`, `BOOK_MERGE`) |
 | `pnpm icons` | regenerate the icons (headless Chrome) |
+| `pnpm splash` | regenerate the iOS launch screens from the icon and update `index.html` (headless Chrome) |
 
 ## Requirements and notes
 

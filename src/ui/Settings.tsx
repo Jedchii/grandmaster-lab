@@ -3,6 +3,7 @@
 //   in the shelf).
 // * Classic: the Lab panel in the bottom sheet (see classic/LabPanel.tsx).
 
+import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { engine } from '../controller';
 import { unlockAudio } from '../feedback/sound';
@@ -28,6 +29,7 @@ import {
 import { closePanels, showToast } from '../state/ui';
 import { Row, Section, Segmented, Slider, Toggle } from './controls';
 import { THEME_ORDER, themeColours } from './themes';
+import { AppStatus } from './UpdateToast';
 
 const kNodes = (k: number) => (k === 0 ? 'Off' : k >= 1000 ? `${(k / 1000).toFixed(1)}M nodes` : `${k}k nodes`);
 
@@ -126,12 +128,29 @@ export function ControlsSection() {
           </p>
         </>
       ) : (
-        <Toggle
-          label="Compact opponent card"
-          hint="One slim line instead of the full card, so the board sits higher. You can also tap the card."
-          checked={ui.compactCard}
-          onChange={(v) => updateUi({ compactCard: v })}
-        />
+        <>
+          <Toggle
+            label="Compact opponent card"
+            hint="One slim line instead of the full card, so the board sits higher. You can also tap the card."
+            checked={ui.compactCard}
+            onChange={(v) => updateUi({ compactCard: v })}
+          />
+          <Row label="Bottom bar for">
+            <Segmented
+              value={ui.handedness}
+              options={[
+                { value: 'right', label: 'Right thumb' },
+                { value: 'left', label: 'Left thumb' },
+              ]}
+              onChange={(v) => updateUi({ handedness: v })}
+            />
+          </Row>
+          <p class="hint">
+            {ui.handedness === 'right'
+              ? 'Back and Next sit on the left, Lab on the right.'
+              : 'Mirrored: Lab on the left, Back and Next on the right.'}
+          </p>
+        </>
       )}
     </Section>
   );
@@ -232,16 +251,26 @@ export function BoardThemeSection() {
 }
 
 /** Two-step button: the first tap arms it, the second (within 2.5 s) acts. */
-function ConfirmButton(props: { label: string; onConfirm: () => void }) {
+export function ConfirmButton(props: {
+  label: ComponentChildren;
+  armedLabel?: ComponentChildren;
+  class?: string;
+  disabled?: boolean;
+  onConfirm: () => void;
+}) {
   const [armed, setArmed] = useState(false);
   useEffect(() => {
     if (!armed) return;
     const t = setTimeout(() => setArmed(false), 2500);
     return () => clearTimeout(t);
   }, [armed]);
+  useEffect(() => {
+    if (props.disabled) setArmed(false);
+  }, [props.disabled]);
   return (
     <button
-      class={`btn ${armed ? 'danger armed' : ''}`}
+      class={`${props.class ?? 'btn'} ${armed ? 'danger armed' : ''}`}
+      disabled={props.disabled}
       onClick={() => {
         if (!armed) {
           setArmed(true);
@@ -251,7 +280,7 @@ function ConfirmButton(props: { label: string; onConfirm: () => void }) {
         props.onConfirm();
       }}
     >
-      {armed ? 'Tap again to reset' : props.label}
+      {armed ? (props.armedLabel ?? 'Tap again to reset') : props.label}
     </button>
   );
 }
@@ -290,6 +319,7 @@ export function PersonaStyle() {
             <Segmented
               value={s.patriciaStyle}
               options={[
+                { value: 'classic', label: 'Classic' },
                 { value: 'aggressive', label: 'Hyper-Aggressive' },
                 { value: 'positional', label: 'Positional' },
                 { value: 'solid', label: 'Solid' },
@@ -298,6 +328,8 @@ export function PersonaStyle() {
             />
           </Row>
           <p class="hint">
+            {s.patriciaStyle === 'classic' &&
+              'Stock Patricia 5.1, exactly as Adam Kulju tuned her. Already the most aggressive engine around.'}
             {s.patriciaStyle === 'aggressive' &&
               'Sacrifices, king hunts and initiative. Patricia’s sacrifice net and bonuses turned up.'}
             {s.patriciaStyle === 'positional' &&
@@ -321,6 +353,21 @@ export function PersonaStyle() {
           </Row>
           <p class="hint">
             Hunts threefold repetitions, perpetual checks, even trades, opposite-bishop fortresses and stalemate tricks.
+          </p>
+          <Row label="Defence">
+            <Segmented
+              value={s.drawfishDefense}
+              options={[
+                { value: 'max', label: 'Max defence' },
+                { value: 'original', label: 'Original' },
+              ]}
+              onChange={(v) => updateEngine({ drawfishDefense: v })}
+            />
+          </Row>
+          <p class="hint">
+            {s.drawfishDefense === 'max'
+              ? 'Always thinks at full depth and fights a worse position back to a draw. The Elo slider doesn’t weaken him.'
+              : 'The first DrawFish: the Elo slider limits how deep he thinks, so a worse position can slip away and he can lose.'}
           </p>
         </>
       )}
@@ -533,6 +580,7 @@ export function FeelSection() {
 export function AboutSection() {
   return (
     <Section title="About">
+      <AppStatus />
       <p class="hint">
         Grandmaster Lab runs fully offline. Swipe right on the board to undo, left to redo. Patricia 5.1 by Adam Kulju
         (MIT) compiled to WebAssembly; Stockfish 19 via stockfish.js (GPLv3); DrawFish logic after Trollfish. Board by

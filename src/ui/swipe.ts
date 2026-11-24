@@ -13,18 +13,19 @@ export interface SwipeOptions {
   onSwipe: (dir: SwipeDir) => void;
 }
 
+/** Swallows the click iOS may still deliver after a gesture ends (within 450 ms). */
+export function swallowClick(): void {
+  const swallow = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  window.addEventListener('click', swallow, { capture: true, once: true });
+  setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 450);
+}
+
 export function attachSwipe(node: HTMLElement, opts: SwipeOptions): () => void {
   let start: { x: number; y: number; id: number } | null = null;
   let fired = false;
-
-  const swallowClick = () => {
-    const swallow = (e: Event) => {
-      e.preventDefault();
-      e.stopPropagation();
-    };
-    window.addEventListener('click', swallow, { capture: true, once: true });
-    setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), 450);
-  };
 
   const onDown = (e: PointerEvent) => {
     start = null;

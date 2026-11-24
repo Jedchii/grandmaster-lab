@@ -11,7 +11,8 @@
 //    every ~12 ms (see gml.h) so `stop`/`ponderhit` still get through.
 //
 // Extensions over stock Patricia: go ponder / ponderhit, ponderdepth and
-// pondernodes thermal caps, UCI_LimitStrength + continuous UCI_Elo, Style.
+// pondernodes thermal caps, UCI_LimitStrength + continuous UCI_Elo, Style,
+// and a human-mode mistake budget that discarded ponder searches don't touch.
 
 #include <emscripten.h>
 #include <emscripten/eventloop.h>
@@ -35,6 +36,13 @@ std::thread g_search_thread;
 
 bool g_limit_strength = false;
 int g_elo = 3000;
+
+// Human mode keeps a running mistake budget (cp_accum_loss) that every
+// search_human() call updates. A search whose move is never played must leave
+// it alone: a ponder search ended by `stop` (the opponent played another
+// move), or one that a `ucinewgame` arrived during.
+std::atomic<bool> g_discard_budget{false};
+std::atomic<int> g_game_epoch{0};
 
 constexpr int kMaxThreads = 3; // matches PTHREAD_POOL_SIZE in build.mjs
 
@@ -67,7 +75,14 @@ Move uci_to_internal(const Position &position, const std::string &uci) {
 void run_search() {
   ThreadInfo &ti = *g_thread_info;
   if (ti.is_human) {
+    const int budget = ti.cp_accum_loss;
+    const int epoch = g_game_epoch.load();
     search_human(g_position, ti);
+    if (epoch != g_game_epoch.load()) {
+      ti.cp_accum_loss = 0; // new_game() already ran; start it clean
+    } else if (g_discard_budget.load()) {
+      ti.cp_accum_loss = budget;
+    }
   } else {
     search_position(g_position, ti, TT);
   }
@@ -269,6 +284,7 @@ void cmd_go(std::istringstream &in) {
   g_ponder_depth_cap = ponder ? ponder_depth : 0;
   g_ponder_nodes_cap = ponder ? ponder_nodes : 0;
   g_ponder_capped.store(false);
+  g_discard_budget.store(false);
   g_pondering.store(ponder, std::memory_order_release);
   thread_data.stop = false;
 
@@ -360,6 +376,7 @@ EMSCRIPTEN_KEEPALIVE void uci_command(const char *line) {
     g_pondering.store(false);
     join_search();
     new_game(*g_thread_info, TT);
+    g_game_epoch.fetch_add(1);
     set_board(g_position, *g_thread_info,
               "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
   } else if (command == "position") {
@@ -367,6 +384,10 @@ EMSCRIPTEN_KEEPALIVE void uci_command(const char *line) {
   } else if (command == "go") {
     cmd_go(in);
   } else if (command == "stop") {
+    // A ponder search that is stopped (not hit) produced a move nobody plays.
+    if (g_pondering.load()) {
+      g_discard_budget.store(true);
+    }
     // Do not join here: the search thread's final printf is proxied to this
     // thread, so the bestmove arrives asynchronously right after.
     thread_data.stop = true;
@@ -374,6 +395,9 @@ EMSCRIPTEN_KEEPALIVE void uci_command(const char *line) {
     cmd_ponderhit();
   } else if (command == "d") {
     print_board(g_position);
+  } else if (command == "budget") {
+    // Debug: human mode's current mistake budget (centipawns).
+    printf("info string budget %d\n", g_thread_info->cp_accum_loss);
   }
 }
 

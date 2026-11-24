@@ -160,9 +160,38 @@ try {
     send('go movetime 400');
     bm = await waitFor(/^bestmove/);
     check(/^bestmove [a-h][1-8][a-h][1-8]/.test(bm), `Elo 1200 move: ${bm}`);
+
+    // human mode's mistake budget: a ponder search that is stopped (the
+    // opponent played another move) must leave it alone; played moves count.
+    const budget = async () => {
+      const reply = waitFor(/^info string budget/, 3000);
+      send('budget');
+      return Number((await reply).split(' ').pop());
+    };
+    const b1 = await budget();
+    send('position startpos moves e2e4 e7e5 g1f3 b8c6');
+    send('go ponder movetime 300');
+    await sleep(250);
+    send('stop');
+    await waitFor(/^bestmove/);
+    const b2 = await budget();
+    check(b2 === b1, `stopped ponder search leaves the budget alone (${b1} -> ${b2})`);
+    let b3 = b2;
+    for (let i = 0; i < 3 && b3 === b2; i++) {
+      send('position startpos moves e2e4 e7e5 g1f3 b8c6');
+      send('go ponder movetime 300');
+      await sleep(100);
+      send('ponderhit');
+      await waitFor(/^bestmove/);
+      b3 = await budget();
+    }
+    check(b3 !== b2, `a ponder hit counts towards the budget (${b2} -> ${b3})`);
+    send('ucinewgame');
+    const b4 = await budget();
+    check(b4 === 0, `ucinewgame resets the budget (${b4})`);
     send('setoption name UCI_LimitStrength value false');
 
-    for (const style of ['Positional', 'Solid', 'Aggressive']) {
+    for (const style of ['Classic', 'Positional', 'Solid', 'Aggressive']) {
       send(`setoption name Style value ${style}`);
       send('position fen r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4');
       send('go depth 10');

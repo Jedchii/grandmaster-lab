@@ -1,0 +1,13 @@
+{
+  "name": "grandmaster-lab-ios",
+  "private": true,
+  "description": "Capacitor shell for the native iOS build. Kept out of the root package so the PWA/Vercel install is unchanged. The Xcode project (ios/) is generated on macOS by scripts/prepare-ios.sh.",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@capacitor/cli": "8.6.2",
+    "@capacitor/core": "8.6.2",
+    "@capacitor/ios": "8.6.2"
+  }
+}

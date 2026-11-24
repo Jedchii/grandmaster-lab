@@ -1,5 +1,6 @@
 node_modules
 dist
+dist-native
 dev-dist
 *.local
 certs/
@@ -14,3 +15,8 @@ public/engines/stockfish/
 *.log
 .DS_Store
 Thumbs.db
+
+# native iOS app: generated on the macOS build machine / downloaded builds
+ios-app/www/
+ios-app/ios/
+build/

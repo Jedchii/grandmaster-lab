@@ -14,6 +14,10 @@ export type EngineKind = 'patricia' | 'stockfish';
 export interface EngineContext {
   threaded: boolean;
   maxThreads: number;
+  /** The persona's own last evaluation in this game (its point of view, centipawns). */
+  lastValue?: number;
+  /** Material balance at the search root for the side to move (pawns). */
+  materialEdge?: number;
 }
 
 export interface SearchPlan {
@@ -54,19 +58,20 @@ export interface Persona {
 export const INSTAMOVE_MS = 30;
 
 /**
- * Ponder depth cap: the user's thermal cap, and with Instamove also the
- * Elo depth limit, so a ponder hit never plays stronger than Instamove would.
+ * Ponder depth cap: the user's thermal cap, and with Instamove (when
+ * `eloDepth`) also the Elo depth limit, so a ponder hit never plays stronger
+ * than Instamove would.
  */
-export function ponderDepthCap(s: EngineSettings): number {
+export function ponderDepthCap(s: EngineSettings, eloDepth = true): number {
   const thermal = s.ponder.maxDepth > 0 ? s.ponder.maxDepth : 0;
-  const elo = s.instamove ? instamoveDepth(s.elo) : 0;
+  const elo = s.instamove && eloDepth ? instamoveDepth(s.elo) : 0;
   if (thermal && elo) return Math.min(thermal, elo);
   return thermal || elo;
 }
 
-function ponderCaps(s: EngineSettings): string {
+function ponderCaps(s: EngineSettings, eloDepth = true): string {
   let caps = '';
-  const depth = ponderDepthCap(s);
+  const depth = ponderDepthCap(s, eloDepth);
   if (depth > 0) caps += ` ponderdepth ${depth}`;
   if (s.ponder.maxKNodes > 0) caps += ` pondernodes ${s.ponder.maxKNodes * 1000}`;
   return caps;
@@ -77,6 +82,7 @@ function pacing(s: EngineSettings, base: number, spread: number): number {
 }
 
 const STYLE_OPTION: Record<PlayStyle, string> = {
+  classic: 'Classic',
   aggressive: 'Aggressive',
   positional: 'Positional',
   solid: 'Solid',
@@ -117,17 +123,13 @@ function eloSlip(ctx: ChooseContext, elo: number, ceiling: number, maxChance: nu
 }
 
 // ------------------------------------------------------------------ Patricia
-
-/** Think-time scale and depth cap per estimated Elo ("search depth throttling"). */
-export function patriciaThrottle(elo: number): { timeScale: number; depthCap: number } {
-  if (elo >= 3000) return { timeScale: 1, depthCap: 0 };
-  if (elo < 1000) return { timeScale: 0.4, depthCap: 5 };
-  if (elo < 1300) return { timeScale: 0.5, depthCap: 7 };
-  if (elo < 1600) return { timeScale: 0.6, depthCap: 9 };
-  if (elo < 2000) return { timeScale: 0.75, depthCap: 12 };
-  if (elo < 2400) return { timeScale: 0.9, depthCap: 16 };
-  return { timeScale: 1, depthCap: 0 };
-}
+//
+// Patricia weakens herself. Below 3000 her own human mode (UCI_Elo) searches
+// five lines at full depth, then plays a worse one within a running mistake
+// budget of 120 - Elo/25 centipawns per move - the calibration her Lichess
+// bot littlePatricia runs. The budget only means what it says when the search
+// is deep enough to measure the losses, so the host never cuts her depth or
+// think time and adds no slips of its own.
 
 /** Did the chosen line give up material (>= 2 pawns) while keeping a good eval? */
 function isSacrifice(ctx: ChooseContext, uci: string): boolean {
@@ -158,32 +160,27 @@ const patricia: Persona = {
   },
   plan(s) {
     if (s.instamove) {
+      // Time limit only: an Elo depth cap would make her budget misjudge losses.
       return {
-        go: instamoveGo(s.elo),
-        ponderGo: `go ponder${ponderCaps(s)}`,
+        go: `go movetime ${INSTAMOVE_MS}`,
+        ponderGo: `go ponder${ponderCaps(s, false)}`,
         inEnginePonderCaps: true,
         minThinkMs: 0,
         lines: s.elo < 3000 ? 5 : 1,
         moveTimeMs: INSTAMOVE_MS,
       };
     }
-    const { timeScale, depthCap } = patriciaThrottle(s.elo);
-    const movetime = Math.max(150, Math.round(s.thinkMs * timeScale));
-    const depth = depthCap ? ` depth ${depthCap}` : '';
     return {
-      go: `go movetime ${movetime}${depth}`,
-      ponderGo: `go ponder movetime ${movetime}${depth}${ponderCaps(s)}`,
+      go: `go movetime ${s.thinkMs}`,
+      ponderGo: `go ponder movetime ${s.thinkMs}${ponderCaps(s, false)}`,
       inEnginePonderCaps: true,
       minThinkMs: pacing(s, 450, 750),
       lines: s.elo < 3000 ? 5 : 1,
-      moveTimeMs: movetime,
+      moveTimeMs: s.thinkMs,
     };
   },
   choose(ctx) {
-    // Patricia's own human mode already varies by Elo; this adds the rare
-    // human-style slip below ~1500.
-    const slip = eloSlip(ctx, ctx.settings.elo, 1500, 0.15);
-    if (slip && parseLegalUci(ctx.root, slip)) return { uci: slip, note: 'humanSlip' };
+    // Strength comes from Patricia's own human mode (see above).
     const note: MoveNote = isSacrifice(ctx, ctx.engineBest) ? 'sacrifice' : ctx.settings.instamove ? 'instant' : 'engine';
     return { uci: ctx.engineBest, note };
   },
@@ -243,6 +240,18 @@ const stockfish: Persona = {
 // ------------------------------------------------------------------ DrawFish
 
 const DRAWFISH_LINES = 6;
+/**
+ * Clearly winning, the top 6 moves all keep the win, so DrawFish couldn't give
+ * it back (or avoid mating). Then she weighs many more moves, at less depth.
+ */
+const DRAWFISH_WIDE_LINES = 24;
+const DRAWFISH_WIDEN_AT = 250; // her last evaluation, centipawns
+const DRAWFISH_WIDEN_MATERIAL = 3; // or this many pawns up on the board
+
+export function drawfishLines(ctx: EngineContext): number {
+  const winning = (ctx.lastValue ?? 0) >= DRAWFISH_WIDEN_AT || (ctx.materialEdge ?? 0) >= DRAWFISH_WIDEN_MATERIAL;
+  return winning ? DRAWFISH_WIDE_LINES : DRAWFISH_LINES;
+}
 
 /** Weaker DrawFish = shallower evaluations; the draw logic itself stays on. */
 function drawfishDepthCap(elo: number): number {
@@ -260,14 +269,17 @@ const drawfish: Persona = {
   configure(engine, s, ctx) {
     engine.setOption('Hash', s.hashMb);
     if (ctx.threaded) engine.setOption('Threads', Math.min(s.threads, ctx.maxThreads));
-    engine.setOption('MultiPV', DRAWFISH_LINES);
+    engine.setOption('MultiPV', drawfishLines(ctx));
     engine.setOption('Ponder', true);
     engine.setOption('UCI_LimitStrength', false);
   },
   plan(s) {
+    // Max defence: always full depth, whatever the Elo setting. Original: the
+    // Elo setting caps her depth, so a worse position can slip away.
+    const max = s.drawfishDefense === 'max';
     if (s.instamove) {
       return {
-        go: instamoveGo(s.elo),
+        go: max ? `go movetime ${INSTAMOVE_MS}` : instamoveGo(s.elo),
         ponderGo: 'go ponder',
         inEnginePonderCaps: false,
         minThinkMs: 0,
@@ -275,7 +287,7 @@ const drawfish: Persona = {
         moveTimeMs: INSTAMOVE_MS,
       };
     }
-    const cap = drawfishDepthCap(s.elo);
+    const cap = max ? 0 : drawfishDepthCap(s.elo);
     return {
       go: `go movetime ${s.thinkMs}${cap ? ` depth ${cap}` : ''}`,
       ponderGo: `go ponder movetime ${s.thinkMs}`,
@@ -286,7 +298,8 @@ const drawfish: Persona = {
     };
   },
   choose(ctx) {
-    const choice = chooseDrawfishMove(ctx.root, ctx.history, ctx.lines, ctx.settings.drawfishMode, ctx.engineBest);
+    const s = ctx.settings;
+    const choice = chooseDrawfishMove(ctx.root, ctx.history, ctx.lines, s.drawfishMode, ctx.engineBest, s.drawfishDefense);
     return { uci: choice.uci, note: choice.note };
   },
 };

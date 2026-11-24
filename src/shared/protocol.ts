@@ -6,9 +6,11 @@
 // so a takeback can never be answered by a move meant for another position.
 
 export type PersonaId = 'patricia' | 'stockfish' | 'drawfish';
-export type PlayStyle = 'aggressive' | 'positional' | 'solid';
+export type PlayStyle = 'classic' | 'aggressive' | 'positional' | 'solid';
 export type Side = 'white' | 'black';
 export type DrawfishMode = 'subtle' | 'relentless';
+/** max: always full depth, defends worse positions hard. original: Elo caps depth, as first built. */
+export type DrawfishDefense = 'max' | 'original';
 
 export interface PonderSettings {
   enabled: boolean;
@@ -34,6 +36,7 @@ export interface EngineSettings {
   elo: number;
   patriciaStyle: PlayStyle;
   drawfishMode: DrawfishMode;
+  drawfishDefense: DrawfishDefense;
   /** Reply in < 50 ms (book, shallow Elo-scaled search, controlled slips). */
   instamove: boolean;
   /** Keep pondering on your time while Instamove is on (a hit replies at once, from the deeper search). */
@@ -163,6 +166,7 @@ export const DEFAULT_SETTINGS: EngineSettings = {
   elo: 1800,
   patriciaStyle: 'aggressive',
   drawfishMode: 'relentless',
+  drawfishDefense: 'max',
   instamove: false,
   ponderInstamove: false,
   thinkMs: 1200,

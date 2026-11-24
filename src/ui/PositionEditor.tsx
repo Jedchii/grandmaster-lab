@@ -24,6 +24,14 @@ type Tool = 'hand' | 'trash' | `${Side}-${Role}`;
 const ROLES: Role[] = ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'];
 const EMPTY_BOARD = '8/8/8/8/8/8/8/8';
 const START_BOARD = INITIAL_FEN.split(' ')[0];
+/** A touch that slides further than this (px) is a drag, not a tap. */
+const TAP_SLOP = 10;
+
+const TOOL_HINT = {
+  hand: 'Drag a piece to move it, or off the board to remove it.',
+  trash: 'Tap a piece to remove it. Dragging still moves pieces.',
+  piece: 'Tap a square to place it, tap again to remove. Dragging still moves pieces.',
+};
 
 interface Castling {
   K: boolean;
@@ -111,18 +119,13 @@ function EditorModal() {
     };
   }, []);
 
-  // Piece / eraser tools paint squares; the hand tool drags pieces freely.
-  useEffect(() => {
-    const cg = cgRef.current;
-    if (!cg) return;
-    const hand = tool === 'hand';
-    cg.set({ movable: { color: hand ? 'both' : undefined }, draggable: { enabled: hand } });
-  }, [tool]);
-
+  // Board pieces are always draggable (chessground): drop on a square to move,
+  // drop off the board to remove. With a piece or the eraser picked, a tap -
+  // finger down and up on the same square without sliding - places or removes
+  // one piece. A slide never paints, and never stops the drag.
   useEffect(() => {
     const node = boardEl.current!;
-    let painting = false;
-    let last = '';
+    let tap: { id: number; x: number; y: number; key: Key } | null = null;
     const squareAt = (x: number, y: number): Key | null => {
       const r = node.getBoundingClientRect();
       const fx = Math.floor(((x - r.left) / r.width) * 8);
@@ -131,45 +134,46 @@ function EditorModal() {
       const white = orientation.value === 'white';
       return makeSquare((white ? 7 - fy : fy) * 8 + (white ? fx : 7 - fx)) as Key;
     };
-    const paint = (key: Key, toggle: boolean) => {
+    const place = (key: Key) => {
       const cg = cgRef.current!;
       const t = toolRef.current;
       const current = cg.state.pieces.get(key);
       let next: Piece | undefined;
       if (t !== 'trash') {
         const [color, role] = t.split('-') as [Side, Role];
+        // Tapping the same piece again takes it off.
         const same = current && current.color === color && current.role === role;
-        next = same && toggle ? undefined : { color, role };
+        next = same ? undefined : { color, role };
       }
       cg.setPieces(new Map([[key, next]]));
       setBoard(cg.getFen());
     };
     const onDown = (e: PointerEvent) => {
-      if (toolRef.current === 'hand') return;
+      tap = null;
+      if (!e.isPrimary || toolRef.current === 'hand') return;
       const key = squareAt(e.clientX, e.clientY);
-      if (!key) return;
-      e.preventDefault();
-      e.stopPropagation();
-      painting = true;
-      last = key;
-      paint(key, true);
+      if (key) tap = { id: e.pointerId, x: e.clientX, y: e.clientY, key };
     };
     const onMove = (e: PointerEvent) => {
-      if (!painting) return;
-      const key = squareAt(e.clientX, e.clientY);
-      if (key && key !== last) {
-        last = key;
-        paint(key, false);
-      }
+      if (tap && e.pointerId === tap.id && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > TAP_SLOP) tap = null;
     };
-    const onUp = () => (painting = false);
-    node.addEventListener('pointerdown', onDown, true);
-    window.addEventListener('pointermove', onMove, { passive: true });
-    window.addEventListener('pointerup', onUp, { passive: true });
+    const onUp = (e: PointerEvent) => {
+      if (!tap || e.pointerId !== tap.id) return;
+      const { key } = tap;
+      tap = null;
+      if (squareAt(e.clientX, e.clientY) === key) place(key);
+    };
+    const onCancel = () => (tap = null);
+    const opts: AddEventListenerOptions = { passive: true };
+    node.addEventListener('pointerdown', onDown, { capture: true, passive: true });
+    window.addEventListener('pointermove', onMove, opts);
+    window.addEventListener('pointerup', onUp, opts);
+    window.addEventListener('pointercancel', onCancel, opts);
     return () => {
-      node.removeEventListener('pointerdown', onDown, true);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
+      node.removeEventListener('pointerdown', onDown, { capture: true });
+      window.removeEventListener('pointermove', onMove, opts);
+      window.removeEventListener('pointerup', onUp, opts);
+      window.removeEventListener('pointercancel', onCancel, opts);
     };
   }, []);
 
@@ -268,6 +272,7 @@ function EditorModal() {
               Starting Position
             </button>
           </div>
+          <p class="hint">{TOOL_HINT[tool === 'hand' || tool === 'trash' ? tool : 'piece']}</p>
 
           <div class="editor-row">
             <span class="row-label">To move</span>

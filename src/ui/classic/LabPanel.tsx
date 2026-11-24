@@ -1,12 +1,15 @@
-// Classic layout: the "Lab" panel inside the bottom sheet. The original
-// opponent / thinking / pondering / book / engine / feel settings, plus the
-// newer tools: Instamove, Edit Position, PGN and the match history.
+// Classic layout: the Lab sheet's four tabs.
+// * Play: quick actions (new game, resign, flip, edit position, PGN), Play as
+//   and Match history.
+// * Opponent: persona, Elo, style, presets, thinking.
+// * Display: coach, controls & gestures, board colours, display & feel, layout.
+// * Engine: pondering, book, engine, saved settings, about.
 
-import { copyPgn, newGame, resign, sharePgn } from '../../controller';
+import { copyPgn, flipBoard, newGame, resign, sharePgn } from '../../controller';
 import { game } from '../../state/game';
 import { uiSettings, updateUi } from '../../state/settings';
-import { editorOpen } from '../../state/ui';
-import { Row, Section, Segmented } from '../controls';
+import { editorOpen, type LabTab } from '../../state/ui';
+import { Icon, Row, Section, Segmented } from '../controls';
 import { MatchHistory } from '../History';
 import { EloSlider, PersonaPicker } from '../PersonaPicker';
 import {
@@ -14,6 +17,7 @@ import {
   BoardThemeSection,
   BookSection,
   CoachSection,
+  ConfirmButton,
   ControlsSection,
   EngineSection,
   FeelSection,
@@ -25,18 +29,69 @@ import {
   ThinkingSection,
 } from '../Settings';
 
-export function LabPanel(props: { onClose: () => void }) {
-  const ui = uiSettings.value;
+function QuickAction(props: { icon: string; label: string; disabled?: boolean; onClick: () => void }) {
   return (
-    <div class="settings">
-      <LayoutSection />
-      <Section title="Opponent">
-        <PersonaPicker />
-        <EloSlider />
-        <PersonaStyle />
-      </Section>
+    <button class="qa" disabled={props.disabled} onClick={props.onClick}>
+      <Icon name={props.icon} />
+      <span>{props.label}</span>
+    </button>
+  );
+}
 
+function PlayTab(props: { onClose: () => void }) {
+  const ui = uiSettings.value;
+  const canResign = !game.result.value && game.length.value > 0;
+  return (
+    <>
       <Section title="Game">
+        <div class="qa-grid">
+          <QuickAction
+            icon="plus"
+            label="New game"
+            onClick={() => {
+              newGame(uiSettings.value.playAs);
+              props.onClose();
+            }}
+          />
+          <ConfirmButton
+            class="qa"
+            disabled={!canResign}
+            label={
+              <>
+                <Icon name="flag" />
+                <span>Resign</span>
+              </>
+            }
+            armedLabel={
+              <>
+                <Icon name="flag" />
+                <span>Tap again</span>
+              </>
+            }
+            onConfirm={() => {
+              resign();
+              props.onClose();
+            }}
+          />
+          <QuickAction
+            icon="flip"
+            label="Flip board"
+            onClick={() => {
+              flipBoard();
+              props.onClose();
+            }}
+          />
+          <QuickAction
+            icon="edit"
+            label="Edit position"
+            onClick={() => {
+              props.onClose();
+              editorOpen.value = true;
+            }}
+          />
+          <QuickAction icon="copy" label="Copy PGN" onClick={() => void copyPgn()} />
+          <QuickAction icon="share" label="Share PGN" onClick={() => void sharePgn()} />
+        </div>
         <Row label="Play as">
           <Segmented
             value={ui.playAs}
@@ -49,62 +104,54 @@ export function LabPanel(props: { onClose: () => void }) {
             onChange={(v) => updateUi({ playAs: v })}
           />
         </Row>
-        <div class="btn-row">
-          <button
-            class="btn primary"
-            onClick={() => {
-              newGame(uiSettings.value.playAs);
-              props.onClose();
-            }}
-          >
-            Start new game
-          </button>
-          <button
-            class="btn danger"
-            disabled={!!game.result.value || game.length.value === 0}
-            onClick={() => {
-              resign();
-              props.onClose();
-            }}
-          >
-            Resign
-          </button>
-        </div>
-        <div class="btn-row three">
-          <button
-            class="btn"
-            onClick={() => {
-              props.onClose();
-              editorOpen.value = true;
-            }}
-          >
-            Edit position
-          </button>
-          <button class="btn" onClick={() => void copyPgn()}>
-            Copy PGN
-          </button>
-          <button class="btn" onClick={() => void sharePgn()}>
-            Share PGN
-          </button>
-        </div>
+        <p class="hint">New game above uses this colour; New in the bar asks each time.</p>
       </Section>
-
-      <CoachSection />
-      <ControlsSection />
-      <PresetsSection />
-      <ThinkingSection />
-      <BoardThemeSection />
-      <FeelSection />
-
       <section class="section">
         <MatchHistory onResume={props.onClose} />
       </section>
-
-      <PonderSection />
-      <BookSection />
-      <EngineSection />
-      <ResetSection />
-      <AboutSection />
-    </div>
+    </>
   );
+}
+
+export function LabPanel(props: { tab: LabTab; onClose: () => void }) {
+  switch (props.tab) {
+    case 'play':
+      return (
+        <div class="settings">
+          <PlayTab onClose={props.onClose} />
+        </div>
+      );
+    case 'opponent':
+      return (
+        <div class="settings">
+          <Section title="Opponent">
+            <PersonaPicker />
+            <EloSlider />
+            <PersonaStyle />
+          </Section>
+          <PresetsSection />
+          <ThinkingSection />
+        </div>
+      );
+    case 'display':
+      return (
+        <div class="settings">
+          <CoachSection />
+          <ControlsSection />
+          <BoardThemeSection />
+          <FeelSection />
+          <LayoutSection />
+        </div>
+      );
+    case 'engine':
+      return (
+        <div class="settings">
+          <PonderSection />
+          <BookSection />
+          <EngineSection />
+          <ResetSection />
+          <AboutSection />
+        </div>
+      );
+  }
 }

@@ -1,0 +1,17 @@
+# What `vercel` uploads for the remote build. The CLI does not read .gitignore,
+# so keep local-only files (and any private keys) out of the upload here.
+node_modules
+dist
+dist-native
+dev-dist
+certs
+.claude
+*.local
+*.log
+# Patricia's C++ sources: the built WASM + nets already live in public/
+engines
+tests
+# native iOS wrapper + its CI workflow and downloaded .ipa builds
+ios-app
+.github
+build

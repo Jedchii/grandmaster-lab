@@ -66,6 +66,11 @@ struct ThreadInfo {
 
   std::array<Move, MaxSearchDepth * MaxSearchDepth> pv;
   std::array<int, 5> pv_material;
+  // Grandmaster Lab: human mode's lines from the last fully searched depth.
+  std::array<Move, 5> done_moves;
+  std::array<int, 5> done_scores;
+  std::array<int, 5> done_material;
+  int done_lines = 0;
 
   Position position;
 

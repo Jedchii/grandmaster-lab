@@ -43,7 +43,11 @@ export interface UiSettings {
   headerLocked: boolean;
   /** Classic: the opponent card shrinks to one line, so the board moves up. */
   compactCard: boolean;
+  /** Classic: 'left' mirrors the bottom bar's button order. */
+  handedness: Handedness;
 }
+
+export type Handedness = 'right' | 'left';
 
 export const DEFAULT_UI: UiSettings = {
   layout: 'classic',
@@ -63,6 +67,7 @@ export const DEFAULT_UI: UiSettings = {
   headerLock: false,
   headerLocked: true,
   compactCard: false,
+  handedness: 'right',
 };
 
 const KEY = 'gml.settings.v1';
@@ -84,8 +89,9 @@ export function sanitizeEngine(raw: unknown): EngineSettings {
   return {
     persona: oneOf(r.persona, ['patricia', 'stockfish', 'drawfish'] as const, d.persona),
     elo: num(elo, 800, 3000, d.elo),
-    patriciaStyle: oneOf(r.patriciaStyle, ['aggressive', 'positional', 'solid'] as const, d.patriciaStyle),
+    patriciaStyle: oneOf(r.patriciaStyle, ['classic', 'aggressive', 'positional', 'solid'] as const, d.patriciaStyle),
     drawfishMode: oneOf(r.drawfishMode, ['subtle', 'relentless'] as const, d.drawfishMode),
+    drawfishDefense: oneOf(r.drawfishDefense, ['max', 'original'] as const, d.drawfishDefense),
     instamove: bool(r.instamove, d.instamove),
     ponderInstamove: bool(r.ponderInstamove, d.ponderInstamove),
     thinkMs: num(r.thinkMs, 300, 6000, d.thinkMs),
@@ -107,7 +113,8 @@ export function sanitizeEngine(raw: unknown): EngineSettings {
 
 const THEMES: readonly BoardTheme[] = ['auto', 'slate', 'paper', 'wood', 'green', 'ocean', 'lavender', 'rose'];
 
-function sanitizeUi(raw: unknown): UiSettings {
+/** Validates UI settings from storage or an older version. */
+export function sanitizeUi(raw: unknown): UiSettings {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const d = DEFAULT_UI;
   return {
@@ -130,6 +137,7 @@ function sanitizeUi(raw: unknown): UiSettings {
     headerLock: bool(r.headerLock, d.headerLock),
     headerLocked: bool(r.headerLocked, d.headerLocked),
     compactCard: bool(r.compactCard, d.compactCard),
+    handedness: oneOf(r.handedness, ['right', 'left'] as const, d.handedness),
   };
 }
 
