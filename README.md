@@ -104,6 +104,8 @@ The same app can also ship as a native iOS app: a Capacitor shell (`ios-app/`) a
 
 **Build** (no Mac needed): `.github/workflows/ios-ipa.yml` runs on a GitHub Actions macOS runner on every push to `main` (or by hand: *Actions → iOS unsigned IPA → Run workflow*). It runs the tests, `pnpm build:native`, generates the Xcode project (`ios-app/scripts/prepare-ios.sh`: Capacitor 8 with Swift Package Manager; portrait only, iPhone only, light status bar over the app, app icon and launch screen from `ios-app/assets`), builds **unsigned**, and uploads `GrandmasterLab-<version>-<run>-unsigned.ipa` as the run's artifact (kept 14 days). Bundle ID `com.grandmasterlab.app`, Home Screen name *GM Lab*.
 
+The same build also runs on **Codemagic** (`codemagic.yaml`; free personal accounts get 500 macOS minutes a month), which is handy when GitHub Actions isn't available: add the repo as an app in Codemagic, then *Start new build → main → iOS unsigned IPA*, and download the `.ipa` from the build's *Artifacts*. Both services run the same `ios-app/scripts/prepare-ios.sh` and `ios-app/scripts/build-ipa.sh`.
+
 **Install with Sideloadly** (Windows or Mac):
 
 1. Plug in the iPhone, unlock it and tap *Trust* if asked.

@@ -1,0 +1,31 @@
+# Codemagic (codemagic.io) cloud build of the UNSIGNED .ipa for sideloading,
+# the same steps as .github/workflows/ios-ipa.yml. Free personal accounts get
+# 500 macOS M2 minutes a month; one build takes roughly 10-15.
+#
+# Manual only (no triggering section): in Codemagic open the app, click
+# "Start new build", pick branch main and workflow "iOS unsigned IPA". The
+# .ipa shows up under the finished build's Artifacts.
+workflows:
+  ios-unsigned-ipa:
+    name: iOS unsigned IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: latest
+    scripts:
+      - name: Install pnpm and dependencies
+        script: |
+          npm install -g pnpm@10.32.1
+          node --version
+          pnpm --version
+          pnpm install --frozen-lockfile
+      - name: Test
+        script: pnpm test
+      - name: Build the bundled web app (no service worker)
+        script: pnpm build:native
+      - name: Generate the Xcode project
+        script: bash ios-app/scripts/prepare-ios.sh
+      - name: Build, package and check the unsigned .ipa
+        script: bash ios-app/scripts/build-ipa.sh "$BUILD_NUMBER"
+    artifacts:
+      - build/ipa/*.ipa
